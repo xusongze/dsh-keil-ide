@@ -98,11 +98,17 @@ A DSH plugin is a package inside a **profile**'s `node_modules`, declared in tha
 `package.json` under `dsh.profile.bundles`. The profile lives at
 `~/.dsh/profiles/<profile-name>` (the desktop app uses `desktop`).
 
-### From npm
+### From GitHub (no npm account needed)
 
 ```bash
 cd ~/.dsh/profiles/desktop
-npm install dsh-keil-ide
+npm install github:xusongze/dsh-keil-ide
+```
+
+Pin a release if you prefer:
+
+```bash
+npm install github:xusongze/dsh-keil-ide#v1.0.0
 ```
 
 Then add the package name to that profile's `dsh.profile.bundles`:
@@ -124,12 +130,21 @@ Then add the package name to that profile's `dsh.profile.bundles`:
 A name listed in `bundles` but not installed makes DSH refuse to start, so keep the two in
 sync. Restart DeepSeek Harness afterwards — the client bundle is loaded at startup.
 
-### From source
+### From npm
+
+```bash
+cd ~/.dsh/profiles/desktop
+npm install dsh-keil-ide
+```
+
+…then the same `dsh.profile.bundles` edit. An npm release is also what makes the plugin
+appear in the **DSH plugin market**, which resolves plugins from the npm registry.
+
+### Manual copy
 
 ```bash
 git clone https://github.com/xusongze/dsh-keil-ide.git
-cd dsh-keil-ide
-cp -r . ~/.dsh/profiles/desktop/node_modules/dsh-keil-ide
+cp -r dsh-keil-ide ~/.dsh/profiles/desktop/node_modules/dsh-keil-ide
 ```
 
 …then add `"dsh-keil-ide"` to `dsh.profile.bundles` as above.

@@ -91,11 +91,17 @@ DSH 插件本质上是某个 **profile** `node_modules` 里的包，并在该 pr
 的 `dsh.profile.bundles` 里声明。profile 位于 `~/.dsh/profiles/<profile名>`
 （桌面版用 `desktop`）。
 
-### 从 npm 安装
+### 从 GitHub 安装（无需 npm 账号）
 
 ```bash
 cd ~/.dsh/profiles/desktop
-npm install dsh-keil-ide
+npm install github:xusongze/dsh-keil-ide
+```
+
+需要锁版本的话：
+
+```bash
+npm install github:xusongze/dsh-keil-ide#v1.0.0
 ```
 
 然后把包名加进该 profile 的 `dsh.profile.bundles`：
@@ -117,12 +123,21 @@ npm install dsh-keil-ide
 **在 `bundles` 里声明了却没安装，DSH 会拒绝启动**，所以这两处必须一致。
 之后**重启 DeepSeek Harness**——客户端包只在启动时加载。
 
-### 从源码安装
+### 从 npm 安装
+
+```bash
+cd ~/.dsh/profiles/desktop
+npm install dsh-keil-ide
+```
+
+同样要改 `dsh.profile.bundles`。发到 npm 也会让插件出现在 **DSH 插件市场**里
+（插件市场是从 npm registry 解析插件的）。
+
+### 手动复制
 
 ```bash
 git clone https://github.com/xusongze/dsh-keil-ide.git
-cd dsh-keil-ide
-cp -r . ~/.dsh/profiles/desktop/node_modules/dsh-keil-ide
+cp -r dsh-keil-ide ~/.dsh/profiles/desktop/node_modules/dsh-keil-ide
 ```
 
 然后把 `"dsh-keil-ide"` 加进 `dsh.profile.bundles`。
