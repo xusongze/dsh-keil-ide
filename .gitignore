@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+
+# Keil build output a local test project may leave behind
+Objects/
+Listings/
+*.uvguix.*
+*.bak
+*.bak-*
+*.axf
+*.hex
+*.o
+*.crf
+*.d
+*.lnp
+*.dep
+*.htm
+*.build_log.htm
+*.iex
+*.sct
+*.map
+*.lst
+
+# Test leftovers
+tmp/
+.tmp/

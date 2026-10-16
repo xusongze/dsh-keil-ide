@@ -1,0 +1,74 @@
+{
+  "name": "dsh-keil-ide",
+  "version": "1.0.0",
+  "description": "Keil MDK / STM32 IDE mode for DeepSeek Harness: browse, edit, build and flash uvprojx projects from a panel, plus a keil_project tool and skill that let the agent add peripheral modules (GPIO, USART, TIM, PWM, ADC, I2C, SPI, EXTI, OLED) and flash them.",
+  "type": "module",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "author": "xusongze <335498829@qq.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xusongze/dsh-keil-ide.git"
+  },
+  "homepage": "https://github.com/xusongze/dsh-keil-ide#readme",
+  "bugs": {
+    "url": "https://github.com/xusongze/dsh-keil-ide/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node test/run-all.mjs"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "keil",
+    "mdk",
+    "uvprojx",
+    "uvision",
+    "stm32",
+    "arm",
+    "embedded",
+    "firmware",
+    "ide",
+    "flash",
+    "st-link",
+    "agent",
+    "tool"
+  ],
+  "files": [
+    "lib",
+    "client",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [],
+      "immediately": true
+    }
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
+  }
+}
