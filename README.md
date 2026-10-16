@@ -212,6 +212,18 @@ the same thing Keil itself does.
 
 ## Development
 
+> Maintainer notes — the three copies of this package, the everyday change flow, the minimal
+> git commands, and a version-bump walkthrough — live in **[MAINTAINING.md](MAINTAINING.md)**
+> (written in Chinese for the current maintainer).
+
+Deploy a local change into your DSH profile:
+
+```bash
+node scripts/deploy-local.mjs        # or: npm run deploy
+```
+
+The plugin is only read at startup, so **restart DeepSeek Harness** afterwards.
+
 The plugin is a plain ESM npm package, no build step:
 
 ```

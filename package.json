@@ -18,7 +18,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node test/run-all.mjs"
+    "test": "node test/run-all.mjs",
+    "deploy": "node scripts/deploy-local.mjs"
   },
   "keywords": [
     "dsh",

@@ -199,7 +199,18 @@ Agent 会调 `keil_project`：先 `add` `Hardware/gpio.c` 与 `Hardware/gpio.h`
 
 ## 开发
 
-纯 ESM 包，无构建步骤：
+> **维护手册**（三份副本的关系、日常改动流程、最小 git 操作、改版本号发新版）见
+> **[MAINTAINING.md](MAINTAINING.md)**。
+
+把本地改动部署进 DSH profile：
+
+```bash
+node scripts/deploy-local.mjs        # 或 npm run deploy
+```
+
+插件只在启动时加载，所以部署后**需要重启 DeepSeek Harness**。
+
+本项目是纯 ESM 包，无构建步骤：
 
 ```
 lib/index.js      宿主侧：HTTP 路由、工程/工具/技能接线
