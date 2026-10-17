@@ -209,10 +209,28 @@ const wants = [
   ['tree-default-width', /\.dsh-ide-tree\{width:308px;min-width:196px/],
   ['tree-row-legible', /\.dsh-ide-row\{[^"]*font-size:13\.5px/],
   ['tree-glyph-size', /createElement\(Svg, \{ size: 15 \}/],
+  // add-file dialog (window.prompt does not exist in Electron)
+  ['add-dialog-css', /\.dsh-ide-modal-card\{/],
+  ['add-dialog-mode-both', /＋ \.c 和 \.h/],
+  ['add-dialog-preview', /将创建：/],
+  ['add-dialog-creates', /createDialogFiles/],
+  // unsaved buffers survive a file switch, plus a save-all
+  ['dirty-buffer-map', /var dirtyMap = useRef\(\{\}\)/],
+  ['dirty-buffer-restore', /已恢复未保存的修改/],
+  ['save-all-button', /全部保存/],
+  ['save-all-fn', /var saveAll = useCallback/],
+  ['tree-dirty-dot', /dsh-ide-dirtydot/],
 ];
 for (const [label, re] of wants) {
   if (!re.test(code)) fail('missing ' + label);
 }
+// A prompt-based flow is dead code in the desktop app: refuse to regress to it.
+// Comments legitimately mention window.prompt, so strip them before checking.
+const codeNoComments = code
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+if (/window\.prompt\s*\(/.test(codeNoComments)) fail('client must not call window.prompt (Electron has no prompt())');
+console.log('[no-window-prompt] OK');
 console.log('[readonly-ui-pieces]', wants.length + ' guarded');
 
 console.log(ok ? 'CLIENT CHECKS OK' : 'CLIENT CHECKS FAILED');

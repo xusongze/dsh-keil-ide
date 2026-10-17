@@ -1,6 +1,6 @@
 {
   "name": "dsh-keil-ide",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Keil MDK / STM32 IDE mode for DeepSeek Harness: browse, edit, build and flash uvprojx projects from a panel, plus a keil_project tool and skill that let the agent add peripheral modules (GPIO, USART, TIM, PWM, ADC, I2C, SPI, EXTI, OLED) and flash them.",
   "type": "module",
   "main": "lib/index.js",

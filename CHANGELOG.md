@@ -4,6 +4,29 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-10-16
+
+### Added
+
+- **Add-file dialog.** Clicking a group's `+` opens an in-panel dialog: type a name, choose
+  `.c` and `.h`, `.c` only, or `.h` only, and the files are created in the group's directory
+  and registered in the project with the right `FileType` and include path. The previous flow
+  relied on `window.prompt`, which **Electron does not implement** — so the plus button
+  silently did nothing in the desktop app.
+- **Unsaved edits survive a file switch.** Every modified file keeps its buffer in memory;
+  reopening it restores that buffer instead of the on-disk copy, and a dot marks it in the
+  project tree.
+- **Save all.** A `全部保存 (N)` button appears in the toolbar once more than one file has
+  unsaved changes, and writes them in one pass.
+
+### Changed
+
+- `/dsh-ide/project/add` accepts the new file's `content`, reports whether it created the
+  file, and **never overwrites an existing one**; a new file without content gets a real
+  skeleton (include guard for `.h`, `#include` for `.c`) instead of `/* TODO */`.
+- Panel modals (the add-file dialog) use the panel's own frosted card and DSH radius tokens
+  rather than a browser dialog.
+
 ## [1.0.0] — 2026-10-16
 
 First public release.

@@ -32,6 +32,8 @@ anyone touching XML.
 | **Two placements** | Full-width panel from the sidebar **IDE** entry, or a right-docked pane side-by-side with the chat (composer **IDE** toggle). |
 | **Two browse modes** | *Directory* mode for any folder; *Project* mode for a `uvprojx`, with collapsible groups (`Start`, `Library`, `System`, `User`, …) and per-group file counts. |
 | **Editor** | Syntax highlighting driven by DSH's Shiki tokens, line numbers, Go-to-error, adjustable font family and size (10–26 px, remembered). |
+| **Unsaved buffers** | Switching files no longer throws work away: each modified file keeps its buffer, reopening restores it, and the tree marks it with a dot. A **`全部保存 (N)`** button writes them all at once. |
+| **Add files** | The **`+`** on a group header opens a dialog that creates `.c` and `.h` (or either) in that group's folder and registers them in the project with the right `FileType` and include path. |
 | **Read-only protection** | Files marked read-only on disk get an amber padlock badge in the tree. The editor goes read-only and saving is refused — **twice**: once in the panel, once on the host. Lock a whole standard-library group with one click on the group's padlock. |
 | **Status toasts** | Bottom-left notifications that slide in from the left, for read-only changes, blocked saves and other state updates. |
 | **Auto-binding** | The panel follows the **session workspace**: open it and the workspace's Keil project loads by itself. Exactly one project → load it; several → pick from a list (remembered per workspace); none → an explicit "no Keil project in this workspace" state that never falls back to some other directory. |

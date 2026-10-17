@@ -158,6 +158,26 @@ window.__ModuleLoader__.load({
       ".dsh-ide-file{font-weight:600;font-size:12.5px;max-width:38%;overflow:hidden;",
       "text-overflow:ellipsis;white-space:nowrap;font-family:var(--ds-font-family-code)}",
       ".dsh-ide-dirty{color:var(--dsw-alias-state-warn-primary)}",
+      // unsaved buffer in the tree: a small amber dot at the row's trailing edge
+      ".dsh-ide-dirtydot{flex:0 0 auto;width:7px;height:7px;border-radius:50%;margin-left:auto;",
+      "background:var(--dsw-alias-warn-primary)}",
+      ".dsh-ide-row-dirty{color:var(--dsw-alias-label-primary)}",
+      ".dsh-ide-row-dirty span:not(.dsh-ide-dirtydot){font-style:italic}",
+      // in-panel modal (window.prompt does not exist in Electron)
+      ".dsh-ide-modal{position:absolute;inset:0;z-index:40;display:flex;align-items:center;",
+      "justify-content:center;background:rgba(0,0,0,.3);padding:16px;animation:dsh-ide-fade-in .16s var(--ds-ease-in-out) both}",
+      ".dsh-ide-modal-card{width:min(420px,94%);max-height:100%;overflow:auto;padding:16px;",
+      "display:flex;flex-direction:column;gap:10px;border-radius:var(--dsw-radius-lg,14px);",
+      "background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l1);",
+      "box-shadow:0 18px 50px rgba(0,0,0,.3);animation:dsh-ide-pop-in .2s var(--ds-ease-in-out) both}",
+      ".dsh-ide-modal-title{font-size:13.5px;font-weight:600;color:var(--dsw-alias-label-primary)}",
+      ".dsh-ide-modal-hint{font-size:11.5px;line-height:1.55;color:var(--dsw-alias-label-secondary)}",
+      ".dsh-ide-modal-hint code{font-family:var(--ds-font-family-code);font-size:11px;",
+      "background:var(--dsw-alias-bg-layer-2);padding:1px 4px;border-radius:3px}",
+      ".dsh-ide-modal-row{display:flex;gap:6px;flex-wrap:wrap}",
+      ".dsh-ide-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:2px}",
+      "@keyframes dsh-ide-fade-in{from{opacity:0}to{opacity:1}}",
+      "@keyframes dsh-ide-pop-in{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
       ".dsh-ide-grow{flex:1;min-width:8px}",
       ".dsh-ide-label{font-size:11.5px;color:var(--dsw-alias-label-secondary)}",
       ".dsh-ide-num{font-size:12px;min-width:20px;text-align:center;font-family:var(--ds-font-family-code)}",
@@ -808,10 +828,14 @@ window.__ModuleLoader__.load({
           if (open) {
             for (var i = 0; i < files.length; i += 1) {
               (function (f) {
+                var unsaved = (props.dirtyPaths || []).indexOf(f.abs) !== -1;
                 rows.push(createElement("button", {
-                  type: "button", key: g.name + "|" + f.path, className: "dsh-ide-row", title: f.path,
+                  type: "button", key: g.name + "|" + f.path,
+                  className: "dsh-ide-row" + (unsaved ? " dsh-ide-row-dirty" : ""),
+                  title: f.path + (unsaved ? "（有未保存的修改）" : ""),
                   onClick: function () { props.onOpenFile(f); },
-                }, createElement(FileIcon, { readOnly: f.readOnly }), createElement("span", null, f.name)));
+                }, createElement(FileIcon, { readOnly: f.readOnly }), createElement("span", null, f.name),
+                  unsaved && createElement("span", { className: "dsh-ide-dirtydot" })));
               })(files[i]);
             }
           }
@@ -876,6 +900,28 @@ window.__ModuleLoader__.load({
       var [choices, setChoices] = useState(null);
       var [file, setFile] = useState(null);
       var [dirty, setDirty] = useState(false);
+
+      /**
+       * Unsaved edits keyed by canonical path.
+       *
+       * Switching files must not throw work away — the old buffer is kept here
+       * and restored when that file is opened again, so the panel behaves like
+       * a real editor instead of a viewer that forgets.
+       */
+      var dirtyMap = useRef({});
+      var [dirtyPaths, setDirtyPaths] = useState([]);
+
+      /** In-panel "add file" dialog state: { group, name, mode } or null. */
+      var [addDialog, setAddDialog] = useState(null);
+
+      /** Record or clear one path's buffer and refresh the derived list. */
+      var setBuffer = useCallback(function (absPath, content) {
+        if (!absPath) return;
+        if (content === undefined) delete dirtyMap.current[absPath];
+        else dirtyMap.current[absPath] = content;
+        setDirtyPaths(Object.keys(dirtyMap.current));
+      }, []);
+
       var [caret, setCaret] = useState(EMPTY_CARET);
       var [status, setStatus] = useState("");
       var [output, setOutput] = useState(null);
@@ -931,6 +977,23 @@ window.__ModuleLoader__.load({
           toastTimers.current = [];
         };
       }, []);
+
+      /**
+       * Write one path's buffer to disk. Resolves to true on success.
+       * Defined after `pushToast` so its dependency is a real function.
+       */
+      var flushBuffer = useCallback(function (absPath) {
+        var content = dirtyMap.current[absPath];
+        if (content === undefined) return Promise.resolve(true);
+        return api("POST", "/dsh-ide/write", { path: absPath, content: content }).then(function (r) {
+          if (r && r.ok) { setBuffer(absPath, undefined); return true; }
+          if (r && r.readOnly) {
+            pushToast({ tone: "err", locked: true, title: "保存被拒绝", detail: basename(absPath) + " 是只读文件" });
+          }
+          setStatus("保存失败：" + basename(absPath) + " — " + ((r && r.error) || "unknown"));
+          return false;
+        });
+      }, [setBuffer, pushToast]);
 
       useEffect(function () {
         setWsCwd(sessionWorkspace.cwd);
@@ -1039,10 +1102,14 @@ window.__ModuleLoader__.load({
         api("GET", "/dsh-ide/read", { path: absPath }).then(function (r) {
           if (r && r.ok) {
             var ro = !!r.readOnly;
-            setFile({ path: r.path, content: r.content, readOnly: ro });
-            setDirty(false);
+            // A file with unsaved edits reopens with that buffer, not the disk copy.
+            var buffered = dirtyMap.current[r.path];
+            setFile({ path: r.path, content: buffered === undefined ? r.content : buffered, readOnly: ro });
+            setDirty(buffered !== undefined);
             setCaret(EMPTY_CARET);
-            setStatus(ro ? "已打开（只读）：" + r.path : "已打开 " + r.path);
+            setStatus(ro
+              ? "已打开（只读）：" + r.path
+              : (buffered !== undefined ? "已恢复未保存的修改：" + r.path : "已打开 " + r.path));
           } else {
             setStatus("打开失败：" + ((r && r.error) || "unknown"));
           }
@@ -1192,14 +1259,40 @@ window.__ModuleLoader__.load({
           });
           return;
         }
+        // Seed the buffer from what is on screen when the editor never fired
+        // onChange (e.g. a freshly opened file).
+        if (dirtyMap.current[file.path] === undefined) dirtyMap.current[file.path] = file.content;
         setBusy(true);
-        api("POST", "/dsh-ide/write", { path: file.path, content: file.content }).then(function (r) {
+        flushBuffer(file.path).then(function (ok) {
           setBusy(false);
-          if (r && r.ok) { setDirty(false); setStatus("已保存 " + file.path); }
-          else if (r && r.readOnly) { setFile({ path: file.path, content: file.content, readOnly: true }); setStatus("保存失败：" + r.error); }
-          else setStatus("保存失败：" + ((r && r.error) || "unknown"));
+          if (ok) { setDirty(false); setStatus("已保存 " + file.path); }
         });
-      }, [file]);
+      }, [file, flushBuffer, pushToast]);
+
+      /** Write every unsaved buffer in one go. */
+      var saveAll = useCallback(function () {
+        var paths = Object.keys(dirtyMap.current);
+        if (paths.length === 0) return;
+        setBusy(true);
+        var saved = 0;
+        var chain = Promise.resolve();
+        paths.forEach(function (p) {
+          chain = chain.then(function () {
+            return flushBuffer(p).then(function (ok) { if (ok) saved += 1; });
+          });
+        });
+        chain.then(function () {
+          setBusy(false);
+          if (file) setDirty(dirtyMap.current[file.path] !== undefined);
+          var all = saved === paths.length;
+          setStatus((all ? "已保存全部 " : "部分保存失败：") + saved + " / " + paths.length + " 个文件");
+          pushToast({
+            tone: all ? "info" : "err", locked: null,
+            title: all ? "全部保存完成" : "有文件保存失败",
+            detail: saved + " / " + paths.length + " 个文件",
+          });
+        });
+      }, [file, flushBuffer, pushToast]);
 
       var compile = useCallback(function () {
         if (!file) return;
@@ -1255,29 +1348,61 @@ window.__ModuleLoader__.load({
         });
       }, [project, keil, targetIndex, pollJob]);
 
+      /**
+       * Open the in-panel "add file" dialog.
+       *
+       * `window.prompt` is NOT implemented in Electron, so the old prompt-based
+       * flow silently did nothing in the desktop app — this dialog is why the
+       * plus button works at all now.
+       */
       var addFileToGroup = useCallback(function (groupName) {
         if (!project) return;
-        var name = null;
-        try { name = window.prompt("文件名（相对工程目录，如 User\\delay.c）："); } catch (e) { name = null; }
-        if (!name) return;
-        name = name.replace(/["<>|]/g, "").trim();
-        if (!name) return;
-        var abs = /^[a-zA-Z]:[\\/]/.test(name)
-          ? name
-          : project.baseDir.replace(/[\\/]+$/, "") + "\\" + name.replace(/\//g, "\\");
-        api("POST", "/dsh-ide/project/add", {
-          project: project.path,
-          target: project.targets[targetIndex] ? project.targets[targetIndex].name : undefined,
-          group: groupName, filePath: abs,
-        }).then(function (r) {
-          if (r && r.ok) {
-            setStatus("已加入工程：" + r.rel);
-            api("POST", "/dsh-ide/project", { project: project.path }).then(function (r2) {
-              if (r2 && r2.ok && r2.project) applyProject(r2.project);
+        setAddDialog({ group: groupName, name: "", mode: "both" });
+      }, [project]);
+
+      /** File names implied by the dialog's mode. */
+      function dialogNames(dlg) {
+        var base = String((dlg && dlg.name) || "").replace(/[\\/:*?"<>|]/g, "").trim();
+        if (!base) return [];
+        if (/\.(c|h)$/i.test(base)) return [base];          // the user typed an extension
+        if (dlg.mode === "c") return [base + ".c"];
+        if (dlg.mode === "h") return [base + ".h"];
+        return [base + ".c", base + ".h"];
+      }
+
+      /** Create every file the dialog implies and add each to the project group. */
+      var createDialogFiles = useCallback(function () {
+        var dlg = addDialog;
+        if (!dlg || !project) return;
+        var names = dialogNames(dlg);
+        if (names.length === 0) { setStatus("请填写文件名"); return; }
+        var dirAbs = project.baseDir.replace(/[\\/]+$/, "") + "\\" + dlg.group;
+        setBusy(true);
+        var made = 0;
+        var chain = Promise.resolve();
+        names.forEach(function (name) {
+          chain = chain.then(function () {
+            return api("POST", "/dsh-ide/project/add", {
+              project: project.path,
+              target: project.targets[targetIndex] ? project.targets[targetIndex].name : undefined,
+              group: dlg.group,
+              filePath: dirAbs + "\\" + name,
+            }).then(function (r) {
+              if (r && r.ok) made += 1;
+              else setStatus("添加失败：" + name + " — " + ((r && r.error) || "unknown"));
             });
-          } else setStatus("添加失败：" + ((r && r.error) || "unknown"));
+          });
         });
-      }, [project, targetIndex, applyProject]);
+        chain.then(function () {
+          setBusy(false);
+          setAddDialog(null);
+          var msg = names.join("、") + "（分组 " + dlg.group + "）";
+          setStatus("已创建并挂进工程：" + msg);
+          pushToast({ tone: "info", locked: null, title: "已创建 " + made + " 个文件", detail: msg });
+          api("POST", "/dsh-ide/project", { project: project.path, cwd: sessionWorkspace.cwd || undefined })
+            .then(function (r2) { if (r2 && r2.ok && r2.project) applyProject(r2.project); });
+        });
+      }, [addDialog, project, targetIndex, applyProject, pushToast]);
 
       var jumpToError = useCallback(function (it) {
         if (it.abs) openPath(it.abs);
@@ -1358,6 +1483,7 @@ window.__ModuleLoader__.load({
         treePane = createElement(ProjectTree, {
           target: target,
           expanded: expanded,
+          dirtyPaths: dirtyPaths,
           onToggleGroup: toggleGroup,
           onToggleGroupReadOnly: setGroupReadOnly,
           onAddFile: addFileToGroup,
@@ -1434,6 +1560,12 @@ window.__ModuleLoader__.load({
                 className: "dsh-ide-btn" + (dirty ? " dsh-ide-btn-primary" : ""),
                 onClick: save, title: "Ctrl+S",
               }, "保存"),
+              dirtyPaths.length > 1 && createElement("button", {
+                type: "button", disabled: busy,
+                className: "dsh-ide-btn",
+                onClick: saveAll,
+                title: "保存所有未保存的文件（切文件不会丢，但别忘了一起存）",
+              }, "全部保存 (" + dirtyPaths.length + ")"),
               canEdit && createElement("button", {
                 type: "button", disabled: busy,
                 className: "dsh-ide-btn dsh-ide-lockbtn" + (file.readOnly ? " dsh-ide-lockbtn-on" : ""),
@@ -1491,8 +1623,10 @@ window.__ModuleLoader__.load({
                   jump: jump,
                   onKeyDown: onEditorKey,
                   onChange: function (next) {
-                    setFile({ path: file.path, content: next });
+                    setFile({ path: file.path, content: next, readOnly: file.readOnly });
                     setDirty(true);
+                    // Keep the buffer so switching away and back is lossless.
+                    setBuffer(file.path, next);
                   },
                 })
               : createElement("div", { className: "dsh-ide-codewrap" },
@@ -1514,6 +1648,55 @@ window.__ModuleLoader__.load({
             type: "button", className: "dsh-ide-link", onClick: copyReference,
             title: "复制「文件路径:行号」，可直接粘贴给 AI",
           }, "复制引用")),
+
+        // In-panel "add file" dialog. Electron has no window.prompt(), so this
+        // is the only way the plus button can ask for a name.
+        addDialog && createElement("div", {
+          className: "dsh-ide-modal",
+          onClick: function () { setAddDialog(null); },
+        },
+          createElement("div", {
+            className: "dsh-ide-modal-card",
+            onClick: function (e) { e.stopPropagation(); },
+          },
+            createElement("div", { className: "dsh-ide-modal-title" },
+              "向分组「" + addDialog.group + "」添加文件"),
+            createElement("div", { className: "dsh-ide-modal-hint" },
+              "只写文件名即可，扩展名按下面的选择自动补。文件会建在 ",
+              createElement("code", null, addDialog.group),
+              " 目录并自动挂进工程。"),
+            createElement("input", {
+              className: "dsh-ide-input", type: "text",
+              placeholder: "例如 gpio / delay / oled",
+              value: addDialog.name, autoFocus: true,
+              onChange: function (e) { setAddDialog(Object.assign({}, addDialog, { name: e.target.value })); },
+              onKeyDown: function (e) {
+                if (e.key === "Enter") createDialogFiles();
+                if (e.key === "Escape") setAddDialog(null);
+              },
+            }),
+            createElement("div", { className: "dsh-ide-modal-row" },
+              [["both", "＋ .c 和 .h"], ["c", "＋ .c"], ["h", "＋ .h"]].map(function (opt) {
+                return createElement("button", {
+                  type: "button", key: opt[0],
+                  className: "dsh-ide-btn" + (addDialog.mode === opt[0] ? " dsh-ide-btn-primary" : ""),
+                  onClick: function () { setAddDialog(Object.assign({}, addDialog, { mode: opt[0] })); },
+                }, opt[1]);
+              })),
+            createElement("div", { className: "dsh-ide-modal-hint" },
+              "将创建：",
+              (dialogNames(addDialog).length
+                ? dialogNames(addDialog).map(function (n) { return addDialog.group + "\\" + n; }).join("   ·   ")
+                : "（先填文件名）")),
+            createElement("div", { className: "dsh-ide-modal-actions" },
+              createElement("button", {
+                type: "button", className: "dsh-ide-btn",
+                onClick: function () { setAddDialog(null); },
+              }, "取消"),
+              createElement("button", {
+                type: "button", className: "dsh-ide-btn dsh-ide-btn-primary", disabled: busy,
+                onClick: createDialogFiles,
+              }, "创建")))),
 
         // Bottom-left transient status toasts (slide in from the left).
         toasts.length > 0 && createElement("div", { className: "dsh-ide-toasts" },
